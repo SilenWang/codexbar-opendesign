@@ -8,6 +8,8 @@ import { PREFLIGHT, PROFILE, SUMMARY, host, loadPlugin, ok } from "./host.mjs";
 
 const definition = loadPlugin();
 
+const WINDOWS = (details) => details[0].rows;
+
 test("the manifest is what the approval sheet lists", () => {
   assert.equal(definition.id, "opendesign");
   assert.equal(definition.name, "OpenDesign");
@@ -23,7 +25,7 @@ test("the manifest is what the approval sheet lists", () => {
   );
 });
 
-test("a Go plan reads as 5 hours over 7 days, plus the wallet", async () => {
+test("a Go plan reads as one plan line and two remaining rows", async () => {
   const { ctx, calls } = host({
     "/workspaces/current": ok(PROFILE),
     "/workspaces/ws1/billing/preflight": ok(PREFLIGHT),
@@ -37,41 +39,23 @@ test("a Go plan reads as 5 hours over 7 days, plus the wallet", async () => {
     "https://amr-api.open-design.ai/api/v1/billing/summary",
   ]);
 
-  assert.deepEqual(usage.primary, {
-    usedPercent: 32.5,
-    windowMinutes: 300,
-    resetsAt: "2026-10-11T11:36:14.000Z",
-  });
-  assert.deepEqual(usage.secondary, {
-    usedPercent: 10.83,
-    windowMinutes: 10080,
-    resetsAt: "2026-10-18T06:36:14.000Z",
-  });
-  assert.equal(usage.extraWindows, undefined);
+  // Nothing else: no rate windows with CodexBar's own "Primary"/"Secondary"
+  // labels, no cost, no identity rows.
+  assert.deepEqual(Object.keys(usage).sort(), ["dataConfidence", "details"]);
   assert.equal(usage.dataConfidence, "exact");
-  assert.equal(usage.subscriptionRenewsAt, "2026-11-11T06:36:14.000Z");
-  assert.deepEqual(usage.identity, {
-    loginMethod: "Design Plan Go",
-    accountID: "ws1",
-    organization: "Ada's workspace",
-  });
+  assert.equal(usage.details.length, 1);
+  assert.equal(usage.details[0].title, "Design Plan Go");
 
-  const windowSection = usage.details[0];
-  assert.equal(windowSection.title, "Design Plan windows");
-  assert.deepEqual(windowSection.rows.map((row) => [row.label, row.value, row.secondaryValue, row.usageValue]), [
-    ["5 hours", "16.3k / 50k credits", "resets 2026-10-11", 16251],
-    ["7 days", "16.3k / 150k credits", "resets 2026-10-18", 16251],
+  const rows = WINDOWS(usage.details);
+  assert.deepEqual(rows.map((row) => [row.label, row.value]), [
+    ["5小时剩余量", "67.5%"],
+    ["7天剩余量", "89.2%"],
   ]);
-  assert.ok(Math.abs(windowSection.rows[0].progress - 0.325) < 1e-9);
-  assert.ok(Math.abs(windowSection.rows[1].progress - 0.1083) < 1e-9);
-  assert.deepEqual(usage.details[1].rows, [
-    { label: "Wallet balance", value: "$1.50" },
-    { label: "Subscription", value: "active" },
-    { label: "Workspace", value: "Ada's workspace" },
-  ]);
+  assert.ok(Math.abs(rows[0].progress - 0.675) < 1e-9);
+  assert.ok(Math.abs(rows[1].progress - 0.892) < 1e-9);
 });
 
-test("a plan with one window shows one window", async () => {
+test("a plan with one window shows one row", async () => {
   const { ctx } = host({
     "/workspaces/current": ok(PROFILE),
     "/workspaces/ws1/billing/preflight": ok({
@@ -88,18 +72,13 @@ test("a plan with one window shows one window", async () => {
   });
   const usage = await definition.fetchUsage(ctx);
 
-  assert.equal(usage.secondary, undefined);
-  assert.equal(usage.extraWindows, undefined);
-  // No reset date reported means no reset date invented.
-  assert.deepEqual(usage.primary, { usedPercent: 10.83, windowMinutes: 10080 });
-  assert.equal(usage.details[0].rows[0].secondaryValue, null);
-  assert.deepEqual(usage.details[1].rows, [
-    { label: "Wallet balance", value: "$0.00" },
-    { label: "Workspace", value: "Ada's workspace" },
+  assert.equal(usage.details[0].title, "Design Plan Pro");
+  assert.deepEqual(WINDOWS(usage.details).map((row) => [row.label, row.value]), [
+    ["7天剩余量", "89.2%"],
   ]);
 });
 
-test("a third window is kept as a named window", async () => {
+test("every window the plan reports becomes its own row", async () => {
   const { ctx } = host({
     "/workspaces/current": ok(PROFILE),
     "/workspaces/ws1/billing/preflight": ok({
@@ -115,10 +94,10 @@ test("a third window is kept as a named window", async () => {
   });
   const usage = await definition.fetchUsage(ctx);
 
-  assert.equal(usage.primary.windowMinutes, 300);
-  assert.equal(usage.secondary.windowMinutes, 10080);
-  assert.deepEqual(usage.extraWindows, [
-    { id: "monthly", title: "30 days", usedPercent: 1, windowMinutes: 43200 },
+  assert.deepEqual(WINDOWS(usage.details).map((row) => row.label), [
+    "5小时剩余量",
+    "7天剩余量",
+    "30天剩余量",
   ]);
 });
 
@@ -137,9 +116,7 @@ test("a window with nothing to divide is left out", async () => {
   });
   const usage = await definition.fetchUsage(ctx);
 
-  assert.equal(usage.primary.usedPercent, 25);
-  assert.equal(usage.primary.windowMinutes, 10080);
-  assert.equal(usage.details[0].rows.length, 1);
+  assert.deepEqual(WINDOWS(usage.details).map((row) => [row.label, row.value]), [["7天剩余量", "75%"]]);
 });
 
 test("credit pools past Number.MAX_SAFE_INTEGER keep their share", async () => {
@@ -160,10 +137,10 @@ test("credit pools past Number.MAX_SAFE_INTEGER keep their share", async () => {
     }),
   });
   const usage = await definition.fetchUsage(ctx);
-  assert.equal(usage.primary.usedPercent, 50);
+  assert.equal(WINDOWS(usage.details)[0].value, "50%");
 });
 
-test("an account with no Design Plan still shows the wallet", async () => {
+test("an account with no Design Plan falls back to the wallet", async () => {
   const { ctx } = host({
     "/workspaces/current": ok(PROFILE),
     "/workspaces/ws1/billing/preflight": ok({
@@ -175,21 +152,18 @@ test("an account with no Design Plan still shows the wallet", async () => {
   });
   const usage = await definition.fetchUsage(ctx);
 
-  assert.equal(usage.primary, undefined);
-  assert.equal(usage.details[0].title, "Account");
-  assert.deepEqual(usage.details[0].rows, [
-    { label: "Wallet balance", value: "$12.35" },
-    { label: "Design Plan", value: "not included — requests draw on the wallet balance" },
-    { label: "Subscription", value: "past_due" },
-    { label: "Workspace", value: "Ada's workspace" },
-  ]);
+  assert.equal(usage.details[0].title, "Design Plan Go");
+  assert.deepEqual(WINDOWS(usage.details), [{ label: "钱包余额", value: "$12.35" }]);
 });
 
 test("a workspace setting skips the workspace read", async () => {
   const { ctx, calls } = host(
     {
       "/workspaces/team9/billing/preflight": ok({
-        codingPlan: { eligible: true, windows: [{ policyId: "weekly", durationSeconds: 604800, usedCredits: "1", limitCredits: "4" }] },
+        codingPlan: {
+          eligible: true,
+          windows: [{ policyId: "weekly", durationSeconds: 604800, usedCredits: "1", limitCredits: "4" }],
+        },
       }),
     },
     { CONTROL_KEY: "vela_ctrl_a", WORKSPACE_ID: "team9" },
@@ -200,8 +174,7 @@ test("a workspace setting skips the workspace read", async () => {
     "https://amr-api.open-design.ai/api/v1/workspaces/team9/billing/preflight",
     "https://amr-api.open-design.ai/api/v1/billing/summary",
   ]);
-  assert.equal(usage.identity.accountID, "team9");
-  assert.equal(usage.identity.organization, undefined);
+  assert.deepEqual(WINDOWS(usage.details).map((row) => row.value), ["75%"]);
 });
 
 test("a refused key reads as a refused key", async () => {
@@ -228,21 +201,21 @@ test("no key at all asks for one", async () => {
   await assert.rejects(definition.fetchUsage(ctx), { code: "missingCredential" });
 });
 
-test("a key pasted into the workspace field is sent to the right field", async () => {
-  const { ctx, calls } = host({}, { CONTROL_KEY: "vela_ctrl_a", WORKSPACE_ID: "vela_ctrl_b" });
-  await assert.rejects(definition.fetchUsage(ctx), (error) => {
-    assert.equal(error.code, "missingCredential");
-    assert.match(error.message, /CONTROL_KEY/);
-    return true;
-  });
-  assert.deepEqual(calls, []);
-});
-
 test("a model-plane key is refused before any request", async () => {
   const { ctx, calls } = host({}, { CONTROL_KEY: "sk-amr-abc123" });
   await assert.rejects(definition.fetchUsage(ctx), (error) => {
     assert.equal(error.code, "authenticationExpired");
     assert.match(error.message, /vela_ctrl_/);
+    return true;
+  });
+  assert.deepEqual(calls, []);
+});
+
+test("a key pasted into the workspace field is sent to the right field", async () => {
+  const { ctx, calls } = host({}, { CONTROL_KEY: "vela_ctrl_a", WORKSPACE_ID: "vela_ctrl_b" });
+  await assert.rejects(definition.fetchUsage(ctx), (error) => {
+    assert.equal(error.code, "missingCredential");
+    assert.match(error.message, /CONTROL_KEY/);
     return true;
   });
   assert.deepEqual(calls, []);
@@ -256,11 +229,7 @@ test("a failing summary never costs the allowance", async () => {
   });
   const usage = await definition.fetchUsage(ctx);
 
-  assert.equal(usage.primary.usedPercent, 32.5);
-  assert.deepEqual(usage.details[1].rows, [
-    { label: "Wallet balance", value: "$1.50" },
-    { label: "Workspace", value: "Ada's workspace" },
-  ]);
+  assert.deepEqual(WINDOWS(usage.details).map((row) => row.value), ["67.5%", "89.2%"]);
 });
 
 test("rate limiting asks for the host's retry", async () => {

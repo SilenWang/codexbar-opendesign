@@ -4,29 +4,23 @@
 
 ## 功能
 
-- Design Plan 的 5 小时 / 7 天额度进度条
-- 每个窗口的已用 / 总额度（credits）与重置时间
-- 计划里的额外窗口（自定义套餐的第三个池）也一起显示
-- 钱包余额、订阅状态与续费日
-- 套餐名、workspace、账号 ID
+- 卡片第一行是计划名称（`DESIGN PLAN GO` 这种）
+- 每个额度窗口一行：`5小时剩余量 98.4%` / `7天剩余量 83.2%`，每行下面带进度条
+- 计划里有几个窗口就显示几行（自定义套餐的第三个池也在）
+- 账号没有 Design Plan 时，改成显示钱包余额
 
 ## 显示效果
 
 ```
-OpenDesign
-Primary: 5% used
-Secondary: 17% used
-Design Plan windows
-5 hours: 2.5k / 50k credits
-7 days: 25.2k / 150k credits
-Account
-Wallet balance: $1.50
-Subscription: active
-Workspace: Ada's workspace
-Organization: Ada's workspace
-Plan: Design Plan Go
-Account ID: ws1
+[OD] OpenDesign
+     opendesign.js
+─────────────────────────────
+DESIGN PLAN GO
+5小时剩余量                 98.1%
+7天剩余量                   83.2%
 ```
+
+名称下面那行文件名、右上角的刷新按钮都是 CodexBar 给插件卡片画的外壳，插件改不了；插件能决定的是下面这块内容。
 
 ## 安装
 

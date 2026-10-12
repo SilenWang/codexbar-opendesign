@@ -25,15 +25,16 @@ const num = (value) => {
 };
 const digits = (value) => typeof value === "string" && /^[0-9]+$/.test(value);
 
-// A window's length in the vendor's own words: "5 hours", "7 days".
-function windowTitle(seconds) {
+// What a window's row is called on the card: "5小时剩余量", "7天剩余量".
+function windowLabel(seconds) {
   const span = num(seconds);
-  if (span === null || span <= 0) return "Allowance";
-  const say = (count, one, many) => count + " " + (count === 1 ? one : many);
-  if (span % DAY === 0) return say(span / DAY, "day", "days");
-  if (span % HOUR === 0) return say(span / HOUR, "hour", "hours");
-  return say(Math.round(span / 60), "minute", "minutes");
+  if (span === null || span <= 0) return "额度剩余量";
+  if (span % DAY === 0) return span / DAY + "天剩余量";
+  if (span % HOUR === 0) return span / HOUR + "小时剩余量";
+  return Math.round(span / 60) + "分钟剩余量";
 }
+
+const percentText = (percent) => Math.round(percent * 10) / 10 + "%";
 
 // How much of a window is spent, as a percentage. Plan pools are decimal
 // strings that can pass Number.MAX_SAFE_INTEGER, so the ratio is taken in
@@ -49,17 +50,6 @@ function usedPercent(used, limit) {
   const allowed = num(limit);
   if (spent === null || allowed === null || allowed <= 0) return null;
   return Math.min(100, Math.round((spent / allowed) * 10000) / 100);
-}
-
-// 16251 credits read as "16.3k", as the vendor's own card rounds them.
-function credits(value) {
-  const count = num(value);
-  if (count === null) return str(value);
-  const whole = Math.round(count);
-  const size = Math.abs(whole);
-  if (size < 10000) return String(whole);
-  if (size < 1000000) return Math.round(whole / 100) / 10 + "k";
-  return Math.round(whole / 100000) / 10 + "M";
 }
 
 // The vendor's own error wording, never a page of HTML.
@@ -140,7 +130,6 @@ defineProvider({
     };
 
     let workspaceID = str(ctx.settings.get("WORKSPACE_ID"));
-    let workspaceName = "";
     // The install sheet only offers the plain settings, so the key ends up
     // here often enough to be worth catching by name.
     if (workspaceID.startsWith("vela_ctrl_") || workspaceID.startsWith("sk-amr-")) {
@@ -151,7 +140,6 @@ defineProvider({
     if (!workspaceID) {
       const current = await get("/workspaces/current", "The workspace read");
       workspaceID = str(current?.activeWorkspaceId) || str(current?.workspaceId);
-      workspaceName = str(current?.name) || str(current?.workspaceName);
       if (!workspaceID) throw ctx.fail.apiFailure("OpenDesign reported no active workspace for this account.");
     }
 
@@ -178,73 +166,35 @@ defineProvider({
         const seconds = num(window?.durationSeconds) ?? 0;
         return {
           seconds: seconds,
-          id: str(window?.policyId) || String(seconds),
-          title: windowTitle(seconds),
-          usedPercent: used,
-          windowMinutes: seconds > 0 ? Math.max(1, Math.round(seconds / 60)) : null,
-          resetsAt: str(window?.resetsAt) || null,
-          usedCredits: str(window?.usedCredits),
-          limitCredits: str(window?.limitCredits),
+          label: windowLabel(seconds),
+          remainingPercent: Math.round((100 - used) * 10) / 10,
         };
       })
       .filter((window) => window !== null)
       .sort((left, right) => left.seconds - right.seconds);
 
-    const windowFields = (window) => ({
-      usedPercent: window.usedPercent,
-      ...(window.windowMinutes ? { windowMinutes: window.windowMinutes } : {}),
-      ...(window.resetsAt ? { resetsAt: window.resetsAt } : {}),
-    });
-
-    const usage = { dataConfidence: "exact" };
-    if (windows[0]) usage.primary = windowFields(windows[0]);
-    if (windows[1]) usage.secondary = windowFields(windows[1]);
-    if (windows.length > 2) {
-      usage.extraWindows = windows.slice(2).map((window) => ({
-        id: window.id,
-        title: window.title,
-        ...windowFields(window),
-      }));
-    }
-
     const balance = num(preflight?.balanceUsd ?? summary?.balanceUsd);
-    const windowRows = windows.map((window) => ({
-      label: window.title,
-      value: credits(window.usedCredits) + " / " + credits(window.limitCredits) + " credits",
-      secondaryValue: window.resetsAt ? "resets " + ctx.format.monthDay(window.resetsAt) : null,
-      progress: window.usedPercent / 100,
-      usageValue: num(window.usedCredits),
+    const rows = windows.map((window) => ({
+      label: window.label,
+      value: percentText(window.remainingPercent),
+      // The bar is the row's own number: what is left, not what is spent.
+      progress: window.remainingPercent / 100,
     }));
 
-    const plan = planLabel(coding, summary);
-    const accountRows = [];
-    if (balance !== null) accountRows.push({ label: "Wallet balance", value: ctx.format.usd(balance) });
-    if (coding && coding.eligible === false) {
-      accountRows.push({ label: "Design Plan", value: "not included — requests draw on the wallet balance" });
-    }
-    const subscription = str(summary?.subscriptionStatus);
-    if (subscription) {
-      accountRows.push({
-        label: "Subscription",
-        value: subscription + (summary?.subscriptionCancelAtPeriodEnd ? " (cancels at period end)" : ""),
-      });
-    }
-    accountRows.push({ label: "Workspace", value: workspaceName || workspaceID });
-
-    usage.details = [];
-    if (windowRows.length) usage.details.push({ title: "Design Plan windows", rows: windowRows });
-    usage.details.push({ title: "Account", rows: accountRows });
-
-    // CodexBar renders loginMethod as the plan line, as the bundled providers do.
-    usage.identity = { loginMethod: plan, accountID: workspaceID };
-    if (workspaceName) usage.identity.organization = workspaceName;
-
-    const periodEnd = str(summary?.subscriptionCurrentPeriodEnd);
-    if (periodEnd) {
-      if (summary?.subscriptionCancelAtPeriodEnd) usage.subscriptionExpiresAt = periodEnd;
-      else usage.subscriptionRenewsAt = periodEnd;
-    }
-
-    return usage;
+    // CodexBar's plugin card draws the two rate windows with its own fixed
+    // "Primary"/"Secondary" labels and shows nothing else this plugin could
+    // rename, so the two quantities live in a detail section instead: its rows
+    // take their label from here, and the section title carries the plan.
+    return {
+      dataConfidence: "exact",
+      details: [
+        {
+          title: planLabel(coding, summary),
+          rows: rows.length > 0
+            ? rows
+            : [{ label: "钱包余额", value: balance === null ? "—" : ctx.format.usd(balance) }],
+        },
+      ],
+    };
   },
 });
