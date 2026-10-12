@@ -68,7 +68,11 @@ function planLabel(coding, summary) {
 defineProvider({
   id: "opendesign",
   name: "OpenDesign",
-  icon: { monogram: "OD", tint: "#6E56CF" },
+  // CodexBar draws a plugin's icon as a monogram on a tinted square — no
+  // file or SVG icons for installed plugins. This is the palette the official
+  // site uses (--ink/--paper #202020, accent #63FE13); the badge text is
+  // always white, so the dark surface is the one that stays legible.
+  icon: { monogram: "OD", tint: "#202020" },
   endpoints: ["https://amr-api.open-design.ai"],
   auth: { type: "bearer", secret: "CONTROL_KEY" },
   // The plugin classifies the status itself, so a refused key reads as a

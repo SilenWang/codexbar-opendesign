@@ -13,6 +13,7 @@ const WINDOWS = (details) => details[0].rows;
 test("the manifest is what the approval sheet lists", () => {
   assert.equal(definition.id, "opendesign");
   assert.equal(definition.name, "OpenDesign");
+  assert.deepEqual(definition.icon, { monogram: "OD", tint: "#202020" });
   assert.deepEqual(definition.endpoints, ["https://amr-api.open-design.ai"]);
   assert.deepEqual(definition.auth, { type: "bearer", secret: "CONTROL_KEY" });
   assert.deepEqual(definition.capabilities, ["http-status"]);

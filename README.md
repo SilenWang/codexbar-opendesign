@@ -22,6 +22,8 @@ DESIGN PLAN GO
 
 名称下面那行文件名、右上角的刷新按钮都是 CodexBar 给插件卡片画的外壳，插件改不了；插件能决定的是下面这块内容。
 
+图标：CodexBar 给已安装插件的图标**只支持**「1–3 个字符的字母组合 + 底色」（manifest 里 `icon: { monogram, tint }`，不支持图片/SVG），所以官网的 logo 没法直接拿来用。这里用的是官网配色里的深色底 `#202020` + 白色 `OD`，和它 favicon 的深底白字观感一致；想要真图标只能等 CodexBar 把 OpenDesign 收进内置 provider（内置的可以带 SVG）。
+
 ## 安装
 
 1. 把 `opendesign.js` 复制到 `~/.config/codexbar/providers/`，或打开 **Settings → Plugins → Install…** 选这个文件。
