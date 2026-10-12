@@ -31,7 +31,7 @@ Account ID: ws1
 ## 安装
 
 1. 把 `opendesign.js` 复制到 `~/.config/codexbar/providers/`，或打开 **Settings → Plugins → Install…** 选这个文件。
-2. 审批窗口只会要求这些权限：
+2. 审批窗口只列**普通设置**，也只会要求这些权限：
 
    ```
    origin:       https://amr-api.open-design.ai
@@ -40,7 +40,16 @@ Account ID: ws1
    secrets:      CONTROL_KEY
    ```
 
-3. 填入 control key，启用插件。
+   这里的 `Workspace ID` 留空即可（留空 = 用账号当前的 workspace），然后点 Install / Approve。
+3. 回到 **Settings → Plugins**，找到 OpenDesign 那一节。`CONTROL_KEY` 是安全设置，**不在上一步的窗口里填**，而是在这一节的两行输入里填：
+
+   - `OpenDesign control key` —— 密码框，粘 `vela_ctrl_…`，**必填**；
+   - `Workspace ID (optional)` —— 保持空白即可。
+4. 点 `Refresh`，数据就出来了（菜单里的刷新按钮一样）。
+
+还没填 key 时 CodexBar 会直接报 `required secret 'CONTROL_KEY' is unavailable`——看到这句就是上面那个密码框还空着。
+
+## control key 从哪来
 
 control key（`vela_ctrl_…`）和 Open Design 桌面端 / `vela` CLI 用的是同一个，桌面端已登录时直接取：
 

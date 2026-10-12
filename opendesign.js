@@ -102,7 +102,9 @@ defineProvider({
   async fetchUsage(ctx) {
     const controlKey = ctx.settings.getSecret("CONTROL_KEY");
     if (!controlKey) {
-      throw ctx.fail.missingCredential("Add the OpenDesign control key (vela_ctrl_…) in this plugin's settings.");
+      throw ctx.fail.missingCredential(
+        "No control key yet. Open CodexBar's Settings → Plugins, find this plugin's section and paste the OpenDesign control key (vela_ctrl_…) into the CONTROL_KEY field, then press Refresh — the install sheet only asks for the plain settings, so the key is entered there afterwards.",
+      );
     }
     // A model-plane key is a real OpenDesign key, just the wrong one: the
     // control plane answers 401 to it in every header form, so say so now
@@ -139,6 +141,13 @@ defineProvider({
 
     let workspaceID = str(ctx.settings.get("WORKSPACE_ID"));
     let workspaceName = "";
+    // The install sheet only offers the plain settings, so the key ends up
+    // here often enough to be worth catching by name.
+    if (workspaceID.startsWith("vela_ctrl_") || workspaceID.startsWith("sk-amr-")) {
+      throw ctx.fail.missingCredential(
+        "The Workspace ID field holds a key, not a workspace id. Move it to the CONTROL_KEY field; leave Workspace ID empty to use the account's active workspace.",
+      );
+    }
     if (!workspaceID) {
       const current = await get("/workspaces/current", "The workspace read");
       workspaceID = str(current?.activeWorkspaceId) || str(current?.workspaceId);

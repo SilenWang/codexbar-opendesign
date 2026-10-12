@@ -228,6 +228,16 @@ test("no key at all asks for one", async () => {
   await assert.rejects(definition.fetchUsage(ctx), { code: "missingCredential" });
 });
 
+test("a key pasted into the workspace field is sent to the right field", async () => {
+  const { ctx, calls } = host({}, { CONTROL_KEY: "vela_ctrl_a", WORKSPACE_ID: "vela_ctrl_b" });
+  await assert.rejects(definition.fetchUsage(ctx), (error) => {
+    assert.equal(error.code, "missingCredential");
+    assert.match(error.message, /CONTROL_KEY/);
+    return true;
+  });
+  assert.deepEqual(calls, []);
+});
+
 test("a model-plane key is refused before any request", async () => {
   const { ctx, calls } = host({}, { CONTROL_KEY: "sk-amr-abc123" });
   await assert.rejects(definition.fetchUsage(ctx), (error) => {
