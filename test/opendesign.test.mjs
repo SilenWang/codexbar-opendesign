@@ -228,6 +228,16 @@ test("no key at all asks for one", async () => {
   await assert.rejects(definition.fetchUsage(ctx), { code: "missingCredential" });
 });
 
+test("a model-plane key is refused before any request", async () => {
+  const { ctx, calls } = host({}, { CONTROL_KEY: "sk-amr-abc123" });
+  await assert.rejects(definition.fetchUsage(ctx), (error) => {
+    assert.equal(error.code, "authenticationExpired");
+    assert.match(error.message, /vela_ctrl_/);
+    return true;
+  });
+  assert.deepEqual(calls, []);
+});
+
 test("a failing summary never costs the allowance", async () => {
   const { ctx } = host({
     "/workspaces/current": ok(PROFILE),

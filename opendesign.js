@@ -104,6 +104,14 @@ defineProvider({
     if (!controlKey) {
       throw ctx.fail.missingCredential("Add the OpenDesign control key (vela_ctrl_…) in this plugin's settings.");
     }
+    // A model-plane key is a real OpenDesign key, just the wrong one: the
+    // control plane answers 401 to it in every header form, so say so now
+    // instead of spending a request to learn it.
+    if (controlKey.startsWith("sk-amr-")) {
+      throw ctx.fail.authenticationExpired(
+        "That is a model-plane API key (sk-amr-…). The Design Plan allowance and wallet live on the control plane, which only takes the account control key (vela_ctrl_…).",
+      );
+    }
 
     // One read of the control plane, classified: http-status means the host
     // handed us the status instead of failing the request itself.
