@@ -1,0 +1,14 @@
+[workspace]
+name = "codexbar-opendesign"
+version = "0.1.0"
+description = "CodexBar local provider plugin that shows OpenDesign (Design Plan) allowance and wallet balance"
+channels = ["conda-forge"]
+platforms = ["linux-64", "osx-64", "osx-arm64"]
+
+[dependencies]
+nodejs = "22.*"
+
+[tasks]
+# One check for the whole plugin: the parsing/mapping logic, run against the
+# control plane's recorded payloads.
+test = "node --test test/*.test.mjs"
