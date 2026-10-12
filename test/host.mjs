@@ -35,7 +35,7 @@ export const PREFLIGHT = {
         usedCredits: "16251",
         remainingCredits: "133749",
         limitCredits: "150000",
-        resetsAt: "2026-10-18T06:36:14.000Z",
+        resetsAt: "2026-10-18T17:00:38.000Z",
       },
       {
         policyId: "session",
@@ -43,7 +43,7 @@ export const PREFLIGHT = {
         usedCredits: "16251",
         remainingCredits: "33749",
         limitCredits: "50000",
-        resetsAt: "2026-10-11T11:36:14.000Z",
+        resetsAt: "2026-10-12T18:00:38.000Z",
       },
     ],
   },
@@ -60,12 +60,19 @@ export const ok = (json) => ({ json });
 
 const failure = (code) => (message, options) => Object.assign(new Error(message), { code, options });
 
-/** A host ctx answering the given paths (`/workspaces/current` → route). */
-export function host(routes, settings = { CONTROL_KEY: "vela_ctrl_a" }) {
+/**
+ * A host ctx answering the given paths (`/workspaces/current` → route), with
+ * the host refresh clock pinned so reset lines are deterministic.
+ */
+export function host(routes, settings = { CONTROL_KEY: "vela_ctrl_a" }, now = new Date("2026-10-12T16:00:00Z")) {
   const calls = [];
   return {
     calls,
     ctx: {
+      date: {
+        now: () => new Date(now.getTime()),
+        iso: (value) => new Date(value),
+      },
       http: {
         async getJSON(url) {
           calls.push(url);

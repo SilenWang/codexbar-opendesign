@@ -36,6 +36,39 @@ function windowLabel(seconds) {
 
 const percentText = (percent) => Math.round(percent * 10) / 10 + "%";
 
+// The reset line, worded like CodexBar's own countdown ("Resets in 2h 13m"):
+// days, then hours, then minutes, rounded up to the next minute.
+function resetText(resetsAt, iso, now) {
+  if (!resetsAt) return null;
+  let at = null;
+  try {
+    at = iso(resetsAt);
+  } catch {
+    return null;
+  }
+  const ms = at instanceof Date ? at.getTime() : NaN;
+  if (!Number.isFinite(ms)) return null;
+
+  const seconds = (ms - now.getTime()) / 1000;
+  if (seconds < 1) return "即将重置";
+  const minutes = Math.max(1, Math.ceil(seconds / 60));
+  const days = Math.floor(minutes / (24 * 60));
+  const hours = Math.floor(minutes / 60) % 24;
+  const rest = minutes % 60;
+  const after = "后重置";
+
+  if (days > 0) {
+    if (hours > 0) return days + "天" + hours + "小时" + after;
+    if (rest > 0) return days + "天" + rest + "分钟" + after;
+    return days + "天" + after;
+  }
+  if (hours > 0) {
+    if (rest > 0) return hours + "小时" + rest + "分钟" + after;
+    return hours + "小时" + after;
+  }
+  return minutes + "分钟" + after;
+}
+
 // How much of a window is spent, as a percentage. Plan pools are decimal
 // strings that can pass Number.MAX_SAFE_INTEGER, so the ratio is taken in
 // BigInt before it ever becomes a float. A window with nothing to divide is
@@ -163,6 +196,8 @@ defineProvider({
       ctx.log("billing summary unavailable:", String(error?.message ?? error));
     }
 
+    const now = ctx.date.now();
+    const iso = (value) => ctx.date.iso(value);
     const windows = (Array.isArray(coding?.windows) ? coding.windows : [])
       .map((window) => {
         const used = usedPercent(window?.usedCredits, window?.limitCredits);
@@ -172,6 +207,7 @@ defineProvider({
           seconds: seconds,
           label: windowLabel(seconds),
           remainingPercent: Math.round((100 - used) * 10) / 10,
+          reset: resetText(str(window?.resetsAt), iso, now),
         };
       })
       .filter((window) => window !== null)
@@ -183,6 +219,7 @@ defineProvider({
       value: percentText(window.remainingPercent),
       // The bar is the row's own number: what is left, not what is spent.
       progress: window.remainingPercent / 100,
+      ...(window.reset ? { secondaryValue: window.reset } : {}),
     }));
 
     // CodexBar's plugin card draws the two rate windows with its own fixed

@@ -48,12 +48,71 @@ test("a Go plan reads as one plan line and two remaining rows", async () => {
   assert.equal(usage.details[0].title, "Design Plan Go");
 
   const rows = WINDOWS(usage.details);
-  assert.deepEqual(rows.map((row) => [row.label, row.value]), [
-    ["5小时剩余量", "67.5%"],
-    ["7天剩余量", "89.2%"],
+  assert.deepEqual(rows.map((row) => [row.label, row.value, row.secondaryValue]), [
+    ["5小时剩余量", "67.5%", "2小时1分钟后重置"],
+    ["7天剩余量", "89.2%", "6天1小时后重置"],
   ]);
   assert.ok(Math.abs(rows[0].progress - 0.675) < 1e-9);
   assert.ok(Math.abs(rows[1].progress - 0.892) < 1e-9);
+});
+
+test("each row carries its reset countdown, worded like the app's", async () => {
+  const { ctx } = host({
+    "/workspaces/current": ok(PROFILE),
+    "/workspaces/ws1/billing/preflight": ok({
+      codingPlan: {
+        eligible: true,
+        windows: [
+          {
+            policyId: "session",
+            durationSeconds: 18000,
+            usedCredits: "0",
+            limitCredits: "100",
+            resetsAt: "2026-10-12T16:30:00.000Z",
+          },
+          {
+            policyId: "weekly",
+            durationSeconds: 604800,
+            usedCredits: "0",
+            limitCredits: "100",
+            resetsAt: "2026-10-18T16:00:00.000Z",
+          },
+        ],
+      },
+    }),
+  });
+  const usage = await definition.fetchUsage(ctx);
+
+  assert.deepEqual(
+    WINDOWS(usage.details).map((row) => [row.value, row.secondaryValue]),
+    [
+      ["100%", "30分钟后重置"],
+      ["100%", "6天后重置"],
+    ],
+  );
+});
+
+test("a window past its reset says so instead of counting backwards", async () => {
+  const { ctx } = host({
+    "/workspaces/current": ok(PROFILE),
+    "/workspaces/ws1/billing/preflight": ok({
+      codingPlan: {
+        eligible: true,
+        windows: [
+          {
+            policyId: "session",
+            durationSeconds: 18000,
+            usedCredits: "0",
+            limitCredits: "100",
+            resetsAt: "2026-10-12T15:00:00.000Z",
+          },
+        ],
+      },
+    }),
+  });
+  const usage = await definition.fetchUsage(ctx);
+
+  assert.equal(WINDOWS(usage.details)[0].secondaryValue, "即将重置");
 });
 
 test("a plan with one window shows one row", async () => {
