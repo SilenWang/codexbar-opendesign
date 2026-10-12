@@ -12,16 +12,7 @@
 
 ## 显示效果
 
-```
-[OD] OpenDesign
-     opendesign.js
-─────────────────────────────
-DESIGN PLAN GO
-5小时剩余量                 98.1%
-                        2小时1分钟后重置
-7天剩余量                   83.2%
-                        6天1小时后重置
-```
+![CodexBar 菜单里的 OpenDesign 卡片](docs/preview.png)
 
 名称下面那行文件名、右上角的刷新按钮都是 CodexBar 给插件卡片画的外壳，插件改不了；插件能决定的是下面这块内容。
 
