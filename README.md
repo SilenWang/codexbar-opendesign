@@ -1,12 +1,28 @@
 # codexbar-opendesign
 
-[CodexBar](https://github.com/steipete/CodexBar) 的 OpenDesign provider 插件：在菜单栏看 [OpenDesign](https://open-design.ai) Design Plan 的额度、钱包余额和订阅状态。
+> **⚠️ 已归档（Archived）：这个插件已经不需要了。**
+>
+> CodexBar 官方已内置 OpenDesign provider。在 **Settings → Providers** 里启用 **OpenDesign**，于浏览器登录 <https://open-design.ai/cloud/login>（或在 provider 的 Cookie 栏粘贴手动 Cookie），再刷新 CodexBar 即可看到当前 workspace 的 5 小时 / 每周额度。
+>
+> 官方实现走浏览器会话，不需要 control key，也不需要往 `~/.config/codexbar/providers/` 安装本地插件。详见 [CodexBar 官方文档：OpenDesign](https://github.com/steipete/CodexBar/blob/main/docs/opendesign.md)。
 
-## 显示效果
+本仓库是官方支持 OpenDesign 之前写的一个 [CodexBar](https://github.com/steipete/CodexBar) 本地 provider 插件：在菜单栏看 [OpenDesign](https://open-design.ai) Design Plan 的 5 小时 / 7 天额度和钱包余额。官方已经覆盖同样的功能，因此仓库已归档、不再维护，代码仅作历史留档。
+
+## 为什么归档
+
+- 官方 provider 开箱即用，「复制插件文件 → 审批权限 → 填 control key」这一整套步骤都不再需要；
+- 官方实现不需要控制面 `vela_ctrl_…` control key，改用浏览器会话 / Cookie，鉴权路径更简单，也不会再遇到「填成模型面 `sk-amr-…`」这类坑；
+- 插件依赖的是控制面未公开接口，功能既然已进官方，继续单独维护没有意义。
+
+新用户请直接用官方 provider，以下内容不再维护，仅供查阅。
+
+## 历史版本（归档前的本地插件）
+
+### 显示效果
 
 ![CodexBar 菜单里的 OpenDesign 卡片](docs/preview.png)
 
-## 安装
+### 安装（仅存档参考）
 
 1. 把 `opendesign.js` 复制到 `~/.config/codexbar/providers/`，或打开 **Settings → Plugins → Install…** 选这个文件。
 2. 审批窗口只列**普通设置**，也只会要求这些权限：
@@ -27,7 +43,7 @@
 
 还没填 key 时 CodexBar 会直接报 `required secret 'CONTROL_KEY' is unavailable`。
 
-## 获取control key
+### 获取 control key（仅存档参考）
 
 control key（`vela_ctrl_…`）和 Open Design 桌面端 / `vela` CLI 用的是同一个，桌面端已登录时直接取：
 
